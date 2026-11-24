@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#050507">
+<title>S26X · Level Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#050507;--surf:#0c0c10;--surf2:#131318;--surf3:#1b1b22;--inset:#08080b;
+  --line:#1c1c24;--line2:#2a2a34;--line3:#3d3d4a;
+  --text:#f5f5f7;--text2:#a1a1aa;--muted:#5c5c6a;
+  --ok:#34d399;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa;--violet:#a78bfa;--pink:#f472b6;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg);scroll-behavior:smooth}
+body{
+  font-family:var(--sans);font-size:14px;line-height:1.55;color:var(--text);
+  min-height:100vh;background:var(--bg);-webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;overflow-x:hidden;position:relative;
+}
+
+/* ── animated background ── */
+.bg-layer{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
+.orb.o1{width:520px;height:520px;background:radial-gradient(circle,#3b82f6,transparent 70%);top:-160px;left:-120px;animation:float1 22s ease-in-out infinite}
+.orb.o2{width:480px;height:480px;background:radial-gradient(circle,#a78bfa,transparent 70%);top:20%;right:-160px;animation:float2 26s ease-in-out infinite}
+.orb.o3{width:420px;height:420px;background:radial-gradient(circle,#f472b6,transparent 70%);bottom:-140px;left:30%;animation:float3 30s ease-in-out infinite;opacity:.35}
+@keyframes float1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(120px,80px) scale(1.15)}}
+@keyframes float2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-100px,120px) scale(1.1)}}
+@keyframes float3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(80px,-90px) scale(1.2)}}
+.grid-overlay{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:60px 60px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%);
+}
+
+/* ── utilities ── */
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #fafafa;outline-offset:2px;border-radius:4px}
+::selection{background:rgba(250,250,250,.18)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--line3)}
+
+/* ── layout ── */
+.wrap{max-width:1140px;margin:0 auto;padding:40px 24px 80px;position:relative;z-index:1}
+
+/* ── entrance animations ── */
+.reveal{opacity:0;transform:translateY(24px);animation:reveal .7s cubic-bezier(.16,1,.3,1) forwards}
+.reveal.d1{animation-delay:.05s}.reveal.d2{animation-delay:.12s}
+.reveal.d3{animation-delay:.2s}.reveal.d4{animation-delay:.28s}
+.reveal.d5{animation-delay:.36s}
+@keyframes reveal{to{opacity:1;transform:none}}
+
+/* ── header ── */
+header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:36px}
+.brand{display:flex;align-items:center;gap:16px}
+.mark{
+  width:52px;height:52px;display:grid;place-items:center;border-radius:16px;
+  background:linear-gradient(135deg,#fff,#c7c7d1);color:#050507;
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 10px 32px rgba(0,0,0,.7),0 0 40px rgba(167,139,250,.25);
+  transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s;position:relative;
+}
+.mark::after{content:"";position:absolute;inset:-2px;border-radius:18px;background:linear-gradient(135deg,#a78bfa,#60a5fa,#f472b6);opacity:0;transition:opacity .35s;z-index:-1;filter:blur(8px)}
+.mark:hover{transform:scale(1.08) rotate(-4deg)}
+.mark:hover::after{opacity:.7}
+.mark svg{width:26px;height:26px;animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.brand h1{font-size:21px;font-weight:900;letter-spacing:-.02em;background:linear-gradient(120deg,#fff 20%,#a78bfa 50%,#60a5fa 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200% auto;animation:shine 6s linear infinite}
+@keyframes shine{to{background-position:200% center}}
+.brand p{font-size:12.5px;color:var(--muted);margin-top:4px;letter-spacing:.01em}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 16px;border-radius:999px;
+  background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);
+  font-size:11.5px;font-weight:600;color:#6ee7b7;letter-spacing:.03em;
+}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 12px #34d399;animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── cards ── */
+.card{
+  position:relative;background:linear-gradient(180deg,rgba(19,19,24,.85),rgba(12,12,16,.95));
+  border:1px solid var(--line);border-radius:24px;padding:28px;
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 40px rgba(0,0,0,.5);
+  backdrop-filter:blur(20px);overflow:hidden;
+}
+.card::before{content:"";position:absolute;inset:0;border-radius:24px;padding:1px;background:linear-gradient(135deg,rgba(255,255,255,.06),transparent 40%,transparent 60%,rgba(167,139,250,.08));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.card+.card{margin-top:22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* ── form ── */
+.lbl{display:block;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
+.inp{
+  width:100%;height:48px;padding:0 16px;border-radius:13px;
+  background:var(--inset);border:1px solid var(--line2);outline:0;
+  transition:border-color .25s,box-shadow .25s,background .25s;font-size:14px;
+}
+.inp::placeholder{color:var(--muted)}
+.inp:focus{border-color:#52525b;background:#0a0a0e;box-shadow:0 0 0 4px rgba(167,139,250,.08),0 0 24px rgba(167,139,250,.06)}
+textarea.inp{height:170px;padding:15px 16px;font-family:var(--mono);font-size:12.5px;resize:vertical;line-height:1.65}
+input[type=file]{width:100%;padding:11px 13px;border-radius:13px;background:var(--inset);border:1px solid var(--line2);color:var(--text2);font-size:13px;transition:border-color .25s}
+input[type=file]:hover{border-color:var(--line3)}
+input[type=file]::file-selector-button{margin-right:14px;height:32px;padding:0 15px;border-radius:9px;border:1px solid var(--line2);background:var(--surf3);color:var(--text);font:inherit;font-weight:600;font-size:12.5px;cursor:pointer;transition:background .2s,border-color .2s}
+input[type=file]::file-selector-button:hover{background:#26262e;border-color:var(--line3)}
+.hint{font-size:12px;color:var(--muted);margin-top:11px;line-height:1.6}
+code{font-family:var(--mono);font-size:11.5px;color:var(--text2);background:#08080b;padding:2px 7px;border-radius:6px;border:1px solid var(--line)}
+
+/* ── buttons ── */
+.btn{
+  position:relative;overflow:hidden;height:48px;padding:0 24px;border-radius:13px;
+  font-size:14px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  transition:transform .15s,filter .25s,background .25s,border-color .25s,box-shadow .25s;
+  white-space:nowrap;letter-spacing:.01em;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{
+  background:linear-gradient(180deg,#fff,#d4d4d8);color:#050507;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 6px 24px rgba(0,0,0,.5),0 0 32px rgba(167,139,250,.15);
+}
+.btn.primary:hover:not(:disabled){filter:brightness(1.05);box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 32px rgba(0,0,0,.6),0 0 48px rgba(167,139,250,.3);transform:translateY(-1px)}
+.btn.primary::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(167,139,250,.25),transparent);transform:translateX(-100%);transition:transform .6s}
+.btn.primary:hover:not(:disabled)::after{transform:translateX(100%)}
+.btn.ghost{background:var(--surf3);color:var(--text);border:1px solid var(--line2)}
+.btn.ghost:hover:not(:disabled){border-color:var(--line3);background:#22222a;transform:translateY(-1px)}
+.btn.block{width:100%}
+.btn.sm{height:38px;padding:0 16px;font-size:12.5px;border-radius:10px;font-weight:600}
+.btn .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:ripple .6s ease-out;pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+/* ── progress ── */
+.progress{margin-top:22px;display:none}
+.progress.show{display:block;animation:fadeIn .4s ease}
+.pbar{height:6px;background:var(--inset);border-radius:99px;overflow:hidden;border:1px solid var(--line);position:relative}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#a78bfa,#f472b6);border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1);position:relative}
+.pbar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);animation:shimmer 1.5s linear infinite}
+@keyframes shimmer{to{transform:translateX(100%)}}
+.pinfo{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--text2);margin-top:12px;letter-spacing:.03em}
+.pinfo span{transition:color .2s}
+
+/* ── groups ── */
+.groups{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gcard{
+  position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(27,27,34,.7),rgba(12,12,16,.9));
+  border:1px solid var(--line);border-radius:20px;padding:22px;
+  transition:border-color .3s,transform .3s cubic-bezier(.16,1,.3,1),box-shadow .3s;
+}
+.gcard:hover{border-color:var(--line3);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.gcard::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--c,#64748b),transparent);opacity:.8}
+.gcard::after{content:"";position:absolute;top:-50%;right:-50%;width:200%;height:200%;background:radial-gradient(circle at center,var(--c,#64748b),transparent 60%);opacity:0;transition:opacity .4s;pointer-events:none}
+.gcard:hover::after{opacity:.06}
+.gcard.g1{--c:var(--info)}.gcard.g2{--c:var(--warn)}.gcard.g3{--c:var(--ok)}
+.gname{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.gname::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--c,#64748b);box-shadow:0 0 10px var(--c,#64748b)}
+.gnum{font-family:var(--mono);font-size:38px;font-weight:700;letter-spacing:-.04em;margin:12px 0 4px;line-height:1;color:var(--c,#fff)}
+.gsub{font-size:12px;color:var(--muted);min-height:18px}
+.gbtn{margin-top:20px;width:100%}
+
+/* ── stats / chips ── */
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.chip{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 15px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surf3);border:1px solid var(--line2);color:var(--text2);letter-spacing:.02em;animation:popIn .4s cubic-bezier(.16,1,.3,1)}
+@keyframes popIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.chip b{color:var(--text);font-family:var(--mono);font-weight:600}
+.chip.ok{border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.07)}
+.chip.ok b{color:#6ee7b7}
+.chip.bad{border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.07)}
+.chip.bad b{color:#fca5a5}
+
+/* ── table ── */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:18px;max-height:540px;background:var(--inset);box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
+th,td{padding:13px 18px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surf3);z-index:2;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line2)}
+td.mono{font-family:var(--mono);font-size:12px;color:var(--text2)}
+tr:last-child td{border-bottom:0}
+tr{transition:background .2s;animation:rowIn .4s cubic-bezier(.16,1,.3,1) both}
+@keyframes rowIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+tr:hover td{background:rgba(167,139,250,.04)}
+.lv{display:inline-block;min-width:50px;text-align:center;font-family:var(--mono);font-weight:600;padding:4px 11px;border-radius:8px;font-size:12px;border:1px solid transparent;transition:transform .2s}
+tr:hover .lv{transform:scale(1.05)}
+.lv.g1{background:rgba(96,165,250,.1);color:#93c5fd;border-color:rgba(96,165,250,.25)}
+.lv.g2{background:rgba(251,191,36,.1);color:#fde68a;border-color:rgba(251,191,36,.25)}
+.lv.g3{background:rgba(52,211,153,.1);color:#86efac;border-color:rgba(52,211,153,.25)}
+.st-ok{color:#6ee7b7;font-weight:600}
+.st-err{color:#fca5a5;white-space:normal;max-width:380px;font-size:12.5px}
+
+/* ── skeleton ── */
+.skeleton{height:16px;border-radius:6px;background:linear-gradient(90deg,var(--surf3) 25%,#26262e 50%,var(--surf3) 75%);background-size:200% 100%;animation:skel 1.4s linear infinite}
+@keyframes skel{to{background-position:-200% 0}}
+.skel-row{display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.skel-row .skeleton:first-child{width:120px}
+.skel-row .skeleton:nth-child(2){width:90px}
+.skel-row .skeleton:nth-child(3){width:50px}
+.skel-row .skeleton:nth-child(4){width:70px}
+
+/* ── toasts ── */
+.toasts{position:fixed;right:24px;bottom:24px;z-index:50;display:flex;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:none}
+.toast{max-width:400px;padding:14px 20px;border-radius:15px;font-size:13px;background:rgba(20,20,24,.95);border:1px solid var(--line2);border-left:3px solid var(--ok);box-shadow:0 20px 50px rgba(0,0,0,.7);backdrop-filter:blur(20px);animation:tin .35s cubic-bezier(.16,1,.3,1);letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.toast::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok);flex-shrink:0}
+.toast.err{border-left-color:var(--bad)}
+.toast.err::before{background:var(--bad);box-shadow:0 0 12px var(--bad)}
+@keyframes tin{from{opacity:0;transform:translateY(16px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ── footer ── */
+footer{margin-top:44px;text-align:center;font-size:11.5px;color:var(--muted);line-height:1.9;letter-spacing:.03em}
+footer strong{color:var(--text2);font-weight:600}
+
+/* ── responsive ── */
+@media (max-width:860px){
+  .grid2{grid-template-columns:1fr}
+  .groups{grid-template-columns:1fr}
+  .wrap{padding:28px 16px 64px}
+  .gnum{font-size:32px}
+  .brand h1{font-size:18px}
+  .card{padding:22px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer" aria-hidden="true">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+</div>
+<div class="grid-overlay" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <header class="reveal">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.6 1.8 4.6 13.2h6.1L9.6 22.2l9.8-11.9h-6.3z"/></svg>
+      </div>
+      <div>
+        <h1>S26X LEVEL CHECKER</h1>
+        <p>Verify levels via UID &amp; password · Separate JSON per level group</p>
+      </div>
+    </div>
+    <span class="badge">SYSTEM ONLINE</span>
+  </header>
+
+  <section class="card reveal d1">
+    <div class="grid2">
+      <div>
+        <label class="lbl" for="key">Access Key</label>
+        <input class="inp" id="key" type="password" autocomplete="off" placeholder="Enter your access key">
+      </div>
+      <div>
+        <label class="lbl" for="file">JSON File (optional)</label>
+        <input id="file" type="file" accept=".json,application/json">
+      </div>
+    </div>
+    <div style="margin-top:20px">
+      <label class="lbl" for="paste">Or paste JSON directly</label>
+      <textarea class="inp" id="paste" spellcheck="false" placeholder='[{"uid":"2212345678","password":"abc123"}]'></textarea>
+      <p class="hint">Format: <code>[{"uid":"...","password":"..."}]</code> · Passwords are never stored — they exist only in this browser tab's memory until download.</p>
+    </div>
+    <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn primary" id="startBtn" type="button">Start Level Check</button>
+      <button class="btn ghost" id="clearBtn" type="button">Clear All</button>
+    </div>
+    <div class="progress" id="progress">
+      <div class="pbar"><i id="pbar"></i></div>
+      <div class="pinfo">
+        <span id="pText">0 / 0</span>
+        <span id="pOk" style="color:#6ee7b7">✔ 0</span>
+        <span id="pErr" style="color:#fca5a5">✘ 0</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card reveal d2" id="resultsCard" hidden>
+    <div class="groups" id="groups">
+      <div class="gcard g1">
+        <div class="gname">Level 0 – 7</div>
+        <div class="gnum" id="n1">0</div>
+        <div class="gsub">accounts</div>
+        <button class="btn ghost sm gbtn" data-group="1" type="button" disabled>Download JSON</button>
+      </div>
+      <div class="gcard g2">
+        <div class="gname">Level 8 – 20</div>
+        <div class="gnum" id="n2">0</div>
+        <div class="gsub">accounts</div>
+        <button class="btn ghost sm gbtn" data-group="2" type="button" disabled>Download JSON</button>
+      </div>
+      <div class="gcard g3">
+        <div class="gname">Level 21+</div>
+        <div class="gnum" id="n3">0</div>
+        <div class="gsub">accounts</div>
+        <button class="btn ghost sm gbtn" data-group="3" type="button" disabled>Download JSON</button>
+      </div>
+    </div>
+    <div style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="stats" id="stats"></div>
+      <button class="btn primary sm" id="dlAll" type="button" disabled>Download All Three</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>UID</th><th>Nickname</th><th>Level</th><th>EXP</th><th>Region</th><th>Status</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="reveal d3">
+    <strong>S26X LEVEL CHECKER</strong> · Use only on accounts you own<br>
+    Educational use only — do not use on accounts that are not yours.
+  </footer>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const CONCURRENCY = 3;
+const TIMEOUT_MS = 28000;
+let groups = {1: [], 2: [], 3: []};
+let running = false;
+let stem = 'accounts';
+
+/* ── ripple effect ── */
+document.addEventListener('click', e => {
+  const b = e.target.closest('.btn');
+  if (!b || b.disabled) return;
+  const r = b.getBoundingClientRect();
+  const s = Math.max(r.width, r.height);
+  const el = document.createElement('span');
+  el.className = 'ripple';
+  el.style.width = el.style.height = s + 'px';
+  el.style.left = (e.clientX - r.left - s/2) + 'px';
+  el.style.top  = (e.clientY - r.top  - s/2) + 'px';
+  b.appendChild(el);
+  setTimeout(() => el.remove(), 650);
+});
+
+/* ── toast ── */
+function toast(msg, err) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (err ? ' err' : '');
+  t.textContent = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => {
+    t.style.transition = 'opacity .3s, transform .3s';
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(20px)';
+    setTimeout(() => t.remove(), 320);
+  }, 3200);
+}
+
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const groupOf = lvl => (lvl <= 7 ? 1 : (lvl <= 20 ? 2 : 3));
+const groupName = g => ({1:'lvl0-7', 2:'lvl8-20', 3:'lvl21plus'})[g];
+
+/* ── count-up animation ── */
+function countUp(el, target) {
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  const t0 = performance.now(), dur = 600;
+  const step = now => {
+    const p = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * e);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ── input parsing ── */
+function parseAccounts(data) {
+  const out = [], seen = new Set();
+  const add = (u, p) => {
+    u = String(u == null ? '' : u).trim(); p = String(p == null ? '' : p).trim();
+    if (u && p && !seen.has(u)) { seen.add(u); out.push({uid: u, password: p}); }
+  };
+  const tryAdd = it => {
+    if (it && typeof it === 'object' && !Array.isArray(it)) {
+      const u = it.uid ?? it.UID ?? it.user_id ?? it.userId;
+      const p = it.password ?? it.pass ?? it.PASSWORD ?? it.pwd;
+      if (u && p) add(u, p);
+    } else if (Array.isArray(it) && it.length >= 2) add(it[0], it[1]);
+  };
+  if (Array.isArray(data)) data.forEach(tryAdd);
+  else if (data && typeof data === 'object') {
+    if (['uid','UID','user_id','userId','password','pass'].some(k => k in data)) tryAdd(data);
+    else for (const [k, v] of Object.entries(data)) if (typeof v === 'string') add(k, v);
+  }
+  return out;
+}
+
+async function getInputAccounts() {
+  const f = $('file').files[0];
+  if (f) {
+    stem = f.name.replace(/\.json$/i, '').replace(/[^\w.-]+/g, '_') || 'accounts';
+    try { return parseAccounts(JSON.parse(await f.text())); }
+    catch (e) { throw new Error('Invalid JSON file'); }
+  }
+  const txt = $('paste').value.trim();
+  if (!txt) throw new Error('Please provide a JSON file or paste JSON');
+  stem = 'accounts';
+  try { return parseAccounts(JSON.parse(txt)); }
+  catch (e) { throw new Error('Invalid pasted JSON'); }
+}
+
+/* ── API call ── */
+async function checkOne(acc, key) {
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), TIMEOUT_MS);
+  try {
+    const r = await fetch('/api/check', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key, uid: acc.uid, password: acc.password}),
+      signal: ac.signal,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) throw new Error('ACCESS_KEY');
+    if (!r.ok && d.error) return {status: 'error', uid: acc.uid, error: d.error};
+    return d;
+  } catch (e) {
+    if (e.message === 'ACCESS_KEY') throw e;
+    return {status: 'error', uid: acc.uid, error: e.name === 'AbortError' ? 'timeout' : 'network error'};
+  } finally { clearTimeout(to); }
+}
+
+/* ── render ── */
+function renderRow(r) {
+  const ok = r.status === 'success';
+  const g = ok ? groupOf(Number(r.level) || 0) : 0;
+  const tr = document.createElement('tr');
+  tr.innerHTML = ok
+    ? `<td class="mono">${esc(r.uid)}</td><td>${esc(r.nickname)}</td>`
+      + `<td><span class="lv g${g}">${esc(r.level)}</span></td>`
+      + `<td class="mono">${esc(r.exp)}</td><td class="mono">${esc(r.region)}</td>`
+      + `<td class="st-ok">✔ OK</td>`
+    : `<td class="mono">${esc(r.uid)}</td><td colspan="4" class="st-err">✘ ${esc(r.error)}</td>`;
+  return tr;
+}
+
+function updateGroupsUI() {
+  for (const g of [1,2,3]) {
+    countUp($('n' + g), groups[g].length);
+    document.querySelector(`button[data-group="${g}"]`).disabled = groups[g].length === 0 || running;
+  }
+  const total = groups[1].length + groups[2].length + groups[3].length;
+  $('dlAll').disabled = total === 0 || running;
+}
+
+function downloadJSON(obj, name) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function groupPayload(g) {
+  return groups[g].map(r => ({
+    uid: String(r.uid), password: String(r._pw),
+    nickname: String(r.nickname), account_id: String(r.account_id),
+    level: Number(r.level) || 0, exp: Number(r.exp) || 0, region: String(r.region),
+  }));
+}
+function stamp() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+function downloadGroup(g) {
+  if (!groups[g].length) return;
+  downloadJSON(groupPayload(g), `${stem}_${stamp()}_${groupName(g)}.json`);
+}
+
+/* ── skeleton loader ── */
+function showSkeleton() {
+  const tb = $('rows');
+  tb.innerHTML = '';
+  for (let i = 0; i < 4; i++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="6"><div class="skel-row"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></td>`;
+    tb.appendChild(tr);
+  }
+}
+
+/* ── main run ── */
+async function run() {
+  if (running) return;
+  const key = $('key').value.trim();
+  if (!key) return toast('Please enter your access key', true);
+  let accounts;
+  try { accounts = await getInputAccounts(); }
+  catch (e) { return toast(e.message, true); }
+  if (!accounts.length) return toast('No valid uid/password pairs found', true);
+
+  running = true;
+  groups = {1: [], 2: [], 3: []};
+  $('rows').innerHTML = '';
+  $('resultsCard').hidden = false;
+  $('startBtn').disabled = true;
+  $('progress').classList.add('show');
+  showSkeleton();
+
+  let done = 0, ok = 0, err = 0;
+  const total = accounts.length;
+  const tick = () => {
+    $('pText').textContent = `${done} / ${total}`;
+    $('pOk').textContent = `✔ ${ok}`;
+    $('pErr').textContent = `✘ ${err}`;
+    $('pbar').style.width = Math.round(done / total * 100) + '%';
+  };
+  tick();
+
+  let idx = 0, stopped = false;
+  const worker = async () => {
+    while (idx < accounts.length && !stopped) {
+      const acc = accounts[idx++];
+      let r;
+      try { r = await checkOne(acc, key); }
+      catch (e) { stopped = true; toast('Invalid access key', true); return; }
+      done++;
+      if (r.status === 'success') {
+        ok++;
+        r._pw = acc.password;
+        groups[groupOf(Number(r.level) || 0)].push(r);
+      } else err++;
+      $('rows').appendChild(renderRow(r));
+      tick();
+      updateGroupsUI();
+    }
+  };
+  await Promise.all(Array.from({length: Math.min(CONCURRENCY, total)}, worker));
+
+  running = false;
+  $('startBtn').disabled = false;
+  updateGroupsUI();
+  $('stats').innerHTML = `<span class="chip ok">Success <b>${ok}</b></span><span class="chip bad">Error <b>${err}</b></span><span class="chip">Total <b>${total}</b></span>`;
+  toast(`Done — ✔ ${ok} · ✘ ${err}`);
+}
+
+/* ── events ── */
+$('startBtn').addEventListener('click', run);
+$('clearBtn').addEventListener('click', () => {
+  if (running) return;
+  $('paste').value = ''; $('file').value = '';
+  groups = {1: [], 2: [], 3: []};
+  $('rows').innerHTML = ''; $('resultsCard').hidden = true; $('progress').classList.remove('show');
+  updateGroupsUI();
+});
+document.querySelectorAll('button[data-group]').forEach(b =>
+  b.addEventListener('click', () => downloadGroup(Number(b.dataset.group))));
+$('dlAll').addEventListener('click', () => {
+  [1,2,3].forEach((g, i) => { if (groups[g].length) setTimeout(() => downloadGroup(g), i * 300); });
+});
+updateGroupsUI();
+</script>
+</body>
+</html>
