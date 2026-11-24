@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 MAX_BODY = 4096
-CHECKER_KEY = os.environ.get("CHECKER_KEY", "").strip()
+CHECKER_KEY = os.environ.get("CHECKER_KEY", "0957").strip()
 
 
 async def check(request: Request) -> JSONResponse:
