@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/check.py": {
-      "includeFiles": "_core.py"
+      "includeFiles": "_core.py",
+      "maxDuration": 30
     }
   }
 }
