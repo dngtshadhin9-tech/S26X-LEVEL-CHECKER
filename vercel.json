@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/check.py": {
-      "includeFiles": "_core.py"
+      "runtime": "@vercel/python@4.3.0"
     }
   }
 }
